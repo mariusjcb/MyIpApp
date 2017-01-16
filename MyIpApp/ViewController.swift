@@ -70,6 +70,7 @@ class ViewController: UIViewController {
     }
     
     func getIP() {
+        json = nil
         let session = URLSession.init(configuration: .default)
         
         if let url = ipRestAPI.url {
@@ -82,6 +83,7 @@ class ViewController: UIViewController {
     }
     
     func getIPWithoutSession() {
+        json = nil
         currentIP = nil
         
         if let url = ipRestAPI.url {
