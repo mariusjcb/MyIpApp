@@ -7,11 +7,21 @@
 //
 
 import UIKit
+import ReachabilitySwift
+import UserNotifications
 
 class ViewController: UIViewController {
     // MARK: Data
     
+    lazy var reachability = Reachability()
+    
     var currentIP: String? {
+        didSet {
+            updateUI()
+        }
+    }
+    
+    var connection: String = Reachability.NetworkStatus.notReachable.description {
         didSet {
             updateUI()
         }
@@ -29,9 +39,60 @@ class ViewController: UIViewController {
         }
     }
     
+    // MARK: Controller
+    
+    @IBOutlet weak var ipLabel: UILabel!
+    @IBOutlet weak var ipTypeLabel: UILabel!
+    @IBOutlet weak var spinner: UIActivityIndicatorView!
+    @IBOutlet weak var sessionSwitch: UISwitch!
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(self.connectionChanged), name: ReachabilityChangedNotification, object: reachability)
+        try? reachability?.startNotifier()
+    }
+    
+    @IBAction func onRefreshTap(_ sender: Any) {
+        getIP()
+    }
+    
+    func connectionChanged(note: Notification) {
+        if let reachability = note.object as? Reachability {
+            connection = reachability.currentReachabilityString
+            
+            if connection != Reachability.NetworkStatus.notReachable.description {
+                sendUserNotification(title: "Conexiune noua", description: "Tocmai ati trecut pe o conexiune " + connection + "\nVerifica noul IP")
+            } else {
+                sendUserNotification(title: "Fara conexiune", description: "Conexiunea a fost intrerupta")
+            }
+            
+            getIP()
+        }
+    }
+    
+    func sendUserNotification(title: String, description body: String) {
+        let content = UNMutableNotificationContent()
+        content.sound = UNNotificationSound.default()
+        content.title = title
+        content.body = body
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.5, repeats: false)
+        let request = UNNotificationRequest.init(identifier: UUID().uuidString, content: content, trigger: trigger)
+        
+        let center = UNUserNotificationCenter.current()
+        center.add(request)
+    }
+    
     // MARK: UI
     
     private func updateUI() {
+        if connection != Reachability.NetworkStatus.notReachable.description {
+            ipTypeLabel.text = connection + " IP:"
+        } else {
+            ipTypeLabel.text = connection
+        }
+        
         if currentIP != nil {
             ipLabel.text = currentIP!
         } else {
@@ -42,26 +103,6 @@ class ViewController: UIViewController {
         ipLabel.isHidden = false
     }
     
-    @IBOutlet weak var ipLabel: UILabel!
-    @IBOutlet weak var spinner: UIActivityIndicatorView!
-    @IBOutlet weak var sessionSwitch: UISwitch!
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        getIP()
-    }
-    
-    @IBAction func onRefreshTap(_ sender: Any) {
-        ipLabel.isHidden = true
-        spinner.startAnimating()
-        
-        if sessionSwitch.isOn {
-            getIP()
-        } else {
-            getIPWithoutSession()
-        }
-    }
-    
     // MARK: RestAPI
     
     private struct ipRestAPI {
@@ -70,7 +111,25 @@ class ViewController: UIViewController {
     }
     
     func getIP() {
-        json = nil
+        ipLabel.isHidden = true
+        
+        if connection != Reachability.NetworkStatus.notReachable.description
+        {
+            spinner.startAnimating()
+            
+            if let isOn = sessionSwitch?.isOn {
+                if isOn {
+                    getIPWithSession()
+                } else {
+                    getIPWithoutSession()
+                }
+            } else {
+                getIPWithSession()
+            }
+        }
+    }
+    
+    func getIPWithSession() {
         let session = URLSession.init(configuration: .default)
         
         if let url = ipRestAPI.url {
@@ -79,15 +138,16 @@ class ViewController: UIViewController {
             }
             
             task.resume()
+        } else {
+            json = nil
         }
     }
     
     func getIPWithoutSession() {
-        json = nil
-        currentIP = nil
-        
         if let url = ipRestAPI.url {
             json = try? Data.init(contentsOf: url)
+        } else {
+            json = nil
         }
     }
 }
