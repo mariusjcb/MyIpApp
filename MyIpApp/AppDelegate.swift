@@ -15,9 +15,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     var notificationAuthorized = false
+    var center = UNUserNotificationCenter.current()
+    var reachability = Reachability()
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        let center = UNUserNotificationCenter.current()
+        
         center.requestAuthorization(options: [.alert, .sound]) { (granted, error) in
             self.notificationAuthorized = granted
         }

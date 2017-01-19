@@ -13,7 +13,8 @@ import UserNotifications
 class ViewController: UIViewController {
     // MARK: Data
     
-    lazy var reachability = Reachability()
+    weak var reachability = (UIApplication.shared.delegate as? AppDelegate)?.reachability
+    weak var center = (UIApplication.shared.delegate as? AppDelegate)?.center
     
     var currentIP: String? {
         didSet {
@@ -49,8 +50,18 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground(notification:)), name: .UIApplicationDidEnterBackground, object: nil)
+        
         NotificationCenter.default.addObserver(self, selector: #selector(self.connectionChanged), name: ReachabilityChangedNotification, object: reachability)
         try? reachability?.startNotifier()
+        
+    }
+    
+    func appDidEnterBackground(notification: Notification) {
+        var backgroundTask: UIBackgroundTaskIdentifier = 0
+        backgroundTask = UIApplication.shared.beginBackgroundTask {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+        }
     }
     
     @IBAction func onRefreshTap(_ sender: Any) {
@@ -62,7 +73,7 @@ class ViewController: UIViewController {
             connection = reachability.currentReachabilityString
             
             if connection != Reachability.NetworkStatus.notReachable.description {
-                sendUserNotification(title: "Conexiune noua", description: "Tocmai ati trecut pe o conexiune " + connection + "\nVerifica noul IP")
+                sendUserNotification(title: "Conexiune noua", description: "Tocmai ati trecut pe o conexiune " + connection + "\n\nVerifica noul IP")
             } else {
                 sendUserNotification(title: "Fara conexiune", description: "Conexiunea a fost intrerupta")
             }
